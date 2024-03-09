@@ -1,0 +1,5 @@
+compreface-sdk
+tensorflow
+keras
+opencv-python
+numpy
