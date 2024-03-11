@@ -4,3 +4,6 @@ install:
 	pip install -r setup.txt
 freeze:
 	pip freeze > setup.txt
+
+cam:
+	python  src/webcam.py

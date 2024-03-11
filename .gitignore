@@ -2,3 +2,5 @@
 /custom-builds
 /.env
 /venv
+/test_data
+/wsl-kernel

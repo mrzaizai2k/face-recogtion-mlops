@@ -18,14 +18,18 @@ import cv2
 import argparse
 import time
 from threading import Thread
+import os 
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from compreface import CompreFace
 from compreface.service import RecognitionService
 
 def parseArguments():
     parser = argparse.ArgumentParser()
-
-    parser.add_argument("--api-key", help="CompreFace recognition service API key", type=str, default='00000000-0000-0000-0000-000000000002')
+    
+    # parser.add_argument("--api-key", help="CompreFace recognition service API key", type=str, default='00000000-0000-0000-0000-000000000002')
     parser.add_argument("--host", help="CompreFace host", type=str, default='http://localhost')
     parser.add_argument("--port", help="CompreFace port", type=str, default='8000')
 
@@ -37,7 +41,8 @@ class ThreadedCamera:
     def __init__(self, api_key, host, port):
         self.active = True
         self.results = []
-        self.capture = cv2.VideoCapture(0)
+
+        self.capture = cv2.VideoCapture("data/videos/WIN_20240311_23_05_25_Pro.mp4")
         self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 2)
 
         compre_face: CompreFace = CompreFace(host, port, {
@@ -50,7 +55,7 @@ class ThreadedCamera:
 
         self.recognition: RecognitionService = compre_face.init_face_recognition(api_key)
 
-        self.FPS = 1/30
+        self.FPS = 1/24
 
         # Start frame retrieval thread
         self.thread = Thread(target=self.show_frame, args=())
@@ -59,9 +64,11 @@ class ThreadedCamera:
 
     def show_frame(self):
         print("Started")
+        
         while self.capture.isOpened():
             (status, frame_raw) = self.capture.read()
             self.frame = cv2.flip(frame_raw, 1)
+            self.frame = cv2.resize(self.frame, (640, 480))
 
             if self.results:
                 results = self.results
@@ -123,6 +130,7 @@ class ThreadedCamera:
 
 if __name__ == '__main__':
     args = parseArguments()
-    threaded_camera = ThreadedCamera(args.api_key, args.host, args.port)
+    API_KEY = os.getenv('API_KEY')
+    threaded_camera = ThreadedCamera(API_KEY, args.host, args.port)
     while threaded_camera.is_active():
         threaded_camera.update()
