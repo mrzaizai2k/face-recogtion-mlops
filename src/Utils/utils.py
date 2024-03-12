@@ -5,6 +5,7 @@ import os
 import psutil
 import json
 import uuid
+import yaml
 import requests
 from dotenv import load_dotenv
 load_dotenv()
@@ -69,3 +70,8 @@ def check_path(path):
             os.makedirs(path)
             print(f"Create new path: {path}")
         return path
+
+def read_config(path = 'config/config.yaml'):
+    with open(path, 'r') as file:
+        data = yaml.safe_load(file)
+    return data

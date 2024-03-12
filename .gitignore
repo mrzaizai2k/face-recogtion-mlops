@@ -4,3 +4,10 @@
 /venv
 /test_data
 /wsl-kernel
+/lfw-deepfunneled
+/lfw_faces
+*.pyc
+*.jpg
+*.mp4
+*.identifier
+/models

@@ -11,8 +11,6 @@ from threading import Thread
 
 from compreface import CompreFace
 from compreface.service import RecognitionService
-from Utils.config_parser import read_config
-from redis_database import *
 from Utils.utils import *
 # from keras.preprocessing.image import img_to_array
 from keras.models import load_model
@@ -31,16 +29,13 @@ def parseArguments():
 
     return args
 
+
 class ThreadedCamera:
     def __init__(self, api_key, host, port, 
                 recognization_config_path = 'config/face_recognization.yaml', 
                 face_liveness_config_path = 'config/face_liveness.yaml', 
-                redis_database: RedisDatabase = RedisDatabase()):
+                ):
         
-
-        self.redis_database = redis_database
-        self.redis_database.flush_database() # optional
-        self.redis_database.flush_database_at_schedule() 
 
         self.green_color = (0, 255, 0)
         self.red_color = (0, 0, 255)
@@ -53,7 +48,7 @@ class ThreadedCamera:
         self.liveness_model = load_model(self.face_liveness_config.get('liveness_model_path'))
         self.liveness_label_encoder = pickle.loads(open(self.face_liveness_config.get('liveness_label_encoder_path'), "rb").read())
 
-        self.capture = cv2.VideoCapture(0)
+        self.capture = cv2.VideoCapture("data/videos/WIN_20240311_23_05_25_Pro.mp4")
         self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 2)
 
         #Load Face Recognition model
@@ -68,15 +63,6 @@ class ThreadedCamera:
         self.thread = Thread(target=self.show_frame, args=())
         self.thread.daemon = True
         self.thread.start()
-
-    def check_and_update_empNo(self, empNo):
-        '''Update employee to Redis cache to not spam the Noti API'''
-        if self.redis_database.is_empno_exists(emp_no=empNo): 
-            return False, self.green_color
-        else:
-            self.redis_database.update_empno(emp_no=empNo)
-            return is_emp(empNo), self.red_color
-        
     
         
     def draw_face_box(self, result, color:tuple = (0, 0, 255)):
@@ -147,7 +133,6 @@ class ThreadedCamera:
                         subjects = result.get('subjects')
                         # print ('liveness_label', liveness_label)
                         empNo = subjects[0]['subject'].split("_")[0]
-                        # is_empNo_in_db, color = self.check_and_update_empNo(empNo=empNo)
                         self.draw_face_box(result, color = self.green_color)
 
             cv2.imshow('CompreFace demo', self.frame)

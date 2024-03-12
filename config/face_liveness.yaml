@@ -1,0 +1,2 @@
+liveness_label_encoder_path: models/liveness_detection/le.pickle
+liveness_model_path: models/liveness_detection/liveness.model

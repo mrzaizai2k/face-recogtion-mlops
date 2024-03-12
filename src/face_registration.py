@@ -19,7 +19,8 @@ from src.test_api import get_base64
 
 from dotenv import load_dotenv
 load_dotenv()
-from Utils.utils import timeit, check_path, is_emp
+from Utils.utils import timeit, check_path
+
 
 
 DOMAIN: str = 'http://localhost'
@@ -52,7 +53,7 @@ def write_face_CNTT(folder_path = 'images/'):
     print ('Done')
 
 @timeit
-def write_face_lfw(parent_folder_path = 'lfw-deepfunneled/lfw-deepfunneled'):
+def write_face_lfw(parent_folder_path = 'data/lfw_faces'):
     for subfolder_name in os.listdir(parent_folder_path):
         subfolder_path = os.path.join(parent_folder_path, subfolder_name)
 
@@ -99,6 +100,5 @@ def recognize_face(image_path):
 
 if __name__ == "__main__":
     # write_face_CNTT()
-    # write_face_lfw()
-    recognize_face('test/2.PNG')
-    print(is_emp(empNo='12062'))
+    write_face_lfw()
+    # recognize_face('test/2.PNG')
