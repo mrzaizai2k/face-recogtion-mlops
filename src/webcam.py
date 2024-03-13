@@ -43,10 +43,10 @@ class ThreadedCamera:
         self.results = []
 
         #Load face liveness model
-        self.face_liveness_config_path =face_liveness_config_path
-        self.face_liveness_config = read_config(path=self.face_liveness_config_path)
-        self.liveness_model = load_model(self.face_liveness_config.get('liveness_model_path'))
-        self.liveness_label_encoder = pickle.loads(open(self.face_liveness_config.get('liveness_label_encoder_path'), "rb").read())
+        # self.face_liveness_config_path =face_liveness_config_path
+        # self.face_liveness_config = read_config(path=self.face_liveness_config_path)
+        # self.liveness_model = load_model(self.face_liveness_config.get('liveness_model_path'))
+        # self.liveness_label_encoder = pickle.loads(open(self.face_liveness_config.get('liveness_label_encoder_path'), "rb").read())
 
         self.capture = cv2.VideoCapture("data/videos/WIN_20240311_23_05_25_Pro.mp4")
         self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 2)
@@ -123,17 +123,17 @@ class ThreadedCamera:
                     face = self.frame[box['y_min']:box['y_max'], box['x_min']:box['x_max']]
                     # cv2.imshow('face', face)
                     
-                    liveness_preds, liveness_label = liveness_predict(face=face, 
-                                                                    liveness_model=self.liveness_model,
-                                                                    liveness_label_encoder=self.liveness_label_encoder,
-                                                                    )
+                    # liveness_preds, liveness_label = liveness_predict(face=face, 
+                    #                                                 liveness_model=self.liveness_model,
+                    #                                                 liveness_label_encoder=self.liveness_label_encoder,
+                    #                                                 )
                     
-                    print (f"liveness_label: {liveness_label} - liveness_preds: {liveness_preds}")
-                    if (liveness_label == 'real') and (liveness_preds[1] >= self.face_liveness_config.get('acc_threshold')):
-                        subjects = result.get('subjects')
-                        # print ('liveness_label', liveness_label)
-                        empNo = subjects[0]['subject'].split("_")[0]
-                        self.draw_face_box(result, color = self.green_color)
+                    # print (f"liveness_label: {liveness_label} - liveness_preds: {liveness_preds}")
+                    # if (liveness_label == 'real') and (liveness_preds[1] >= self.face_liveness_config.get('acc_threshold')):
+                    #     subjects = result.get('subjects')
+                    #     # print ('liveness_label', liveness_label)
+                    #     empNo = subjects[0]['subject'].split("_")[0]
+                    self.draw_face_box(result, color = self.green_color)
 
             cv2.imshow('CompreFace demo', self.frame)
             time.sleep(self.FPS)
