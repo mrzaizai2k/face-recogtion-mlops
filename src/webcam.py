@@ -13,10 +13,10 @@ from compreface import CompreFace
 from compreface.service import RecognitionService
 from Utils.utils import *
 # from keras.preprocessing.image import img_to_array
-from keras.models import load_model
+# from keras.models import load_model
 import imutils
 import pickle
-from liveness import *
+# from liveness import *
 
 
 def parseArguments():
@@ -48,7 +48,7 @@ class ThreadedCamera:
         # self.liveness_model = load_model(self.face_liveness_config.get('liveness_model_path'))
         # self.liveness_label_encoder = pickle.loads(open(self.face_liveness_config.get('liveness_label_encoder_path'), "rb").read())
 
-        self.capture = cv2.VideoCapture("data/videos/WIN_20240311_23_05_25_Pro.mp4")
+        self.capture = cv2.VideoCapture(0)
         self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 2)
 
         #Load Face Recognition model
@@ -162,7 +162,3 @@ if __name__ == '__main__':
     while threaded_camera.is_active():
         start_time = time.time()
         threaded_camera.update_frame()
-        try:
-            print("FPS: ", 1.0 / (time.time() - start_time))
-        except:
-            pass
