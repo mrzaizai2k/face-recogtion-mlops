@@ -13,10 +13,10 @@ from compreface import CompreFace
 from compreface.service import RecognitionService
 from Utils.utils import *
 # from keras.preprocessing.image import img_to_array
-# from keras.models import load_model
+from keras.models import load_model
 import imutils
 import pickle
-# from liveness import *
+from liveness import *
 
 
 def parseArguments():
@@ -69,13 +69,19 @@ class ThreadedCamera:
         '''Draw face with information on screen
         color: Tuple - default is red
         '''
+        # print("result", result)
         box = result.get('box')
         age = result.get('age')
         gender = result.get('gender')
         mask = result.get('mask')
+        pose = result.get('pose')
+        landmarks = result.get('landmarks')
         subjects = result.get('subjects')
 
-        
+        print("mask", mask)
+        print("pose", pose)
+        print("landmarks", landmarks)
+
         if box:
             cv2.rectangle(img=self.frame, pt1=(box['x_min'], box['y_min']),
                                         pt2=(box['x_max'], box['y_max']), color = color, thickness=1)
@@ -115,11 +121,32 @@ class ThreadedCamera:
         while self.capture.isOpened():
             (status, frame_raw) = self.capture.read()
             self.frame = cv2.flip(frame_raw, 1)
-
+            frame_height, frame_width, _ = self.frame.shape
+            pose_threshold = 10 
             if self.results:
                 results = self.results
                 for result in results:
                     box = result.get('box')
+                    mask = result.get('mask')
+                    pose = result.get('pose')
+                    landmarks = result.get('landmarks')
+
+                    if mask['value'] != "without_mask":
+                        print("mask", mask)
+                        continue  # Skip to the next iteration of the loop
+
+                         # Calculate face height
+                    face_height = box['y_max'] - box['y_min']
+                    
+                    # Check if face height is less than 1/4 of the video height. The face is too small
+                    if face_height < frame_height / 4:
+                        print("face_height", face_height)
+                        continue
+
+                    if abs(pose['pitch']) > pose_threshold or abs(pose['roll']) > pose_threshold or abs(pose['yaw']) > pose_threshold:
+                        continue  # Skip to the next iteration of the loop
+
+
                     face = self.frame[box['y_min']:box['y_max'], box['x_min']:box['x_max']]
                     # cv2.imshow('face', face)
                     
@@ -149,7 +176,6 @@ class ThreadedCamera:
     def update_frame(self):
         if not hasattr(self, 'frame'):
             return
-
         _, im_buf_arr = cv2.imencode(".jpg", self.frame)
         byte_im = im_buf_arr.tobytes()
         data = self.recognition.recognize(byte_im)
@@ -162,3 +188,7 @@ if __name__ == '__main__':
     while threaded_camera.is_active():
         start_time = time.time()
         threaded_camera.update_frame()
+        # try:
+        #     print("FPS: ", 1.0 / (time.time() - start_time))
+        # except:
+        #     pass

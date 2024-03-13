@@ -1,4 +1,4 @@
 limit : 0
 det_prob_threshold : 0.8
 prediction_count : 1
-status : False
+face_plugins:  landmarks, pose, mask
