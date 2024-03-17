@@ -16,6 +16,7 @@ from Utils.utils import *
 from keras.models import load_model
 import imutils
 import pickle
+import tensorflow as tf
 from liveness import *
 
 
@@ -42,11 +43,16 @@ class ThreadedCamera:
         self.active = True
         self.results = []
 
-        #Load face liveness model
-        # self.face_liveness_config_path =face_liveness_config_path
-        # self.face_liveness_config = read_config(path=self.face_liveness_config_path)
-        # self.liveness_model = load_model(self.face_liveness_config.get('liveness_model_path'))
-        # self.liveness_label_encoder = pickle.loads(open(self.face_liveness_config.get('liveness_label_encoder_path'), "rb").read())
+        print("[INFO] loading liveness detector...")
+
+        TF_MODEL_FILE_PATH = 'models/liveness/model.tflite' # The default path to the saved TensorFlow Lite model
+
+        self.interpreter = tf.lite.Interpreter(model_path=TF_MODEL_FILE_PATH)
+        print(self.interpreter.get_signature_list())
+
+        self.classify_lite = self.interpreter.get_signature_runner('serving_default')
+        print("classify_lite", self.classify_lite)
+        self.class_names = ['fake', 'real']
 
         self.capture = cv2.VideoCapture(0)
         self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 2)
@@ -78,9 +84,9 @@ class ThreadedCamera:
         landmarks = result.get('landmarks')
         subjects = result.get('subjects')
 
-        print("mask", mask)
-        print("pose", pose)
-        print("landmarks", landmarks)
+        # print("mask", mask)
+        # print("pose", pose)
+        # print("landmarks", landmarks)
 
         if box:
             cv2.rectangle(img=self.frame, pt1=(box['x_min'], box['y_min']),
@@ -137,30 +143,41 @@ class ThreadedCamera:
 
                          # Calculate face height
                     face_height = box['y_max'] - box['y_min']
+
                     
                     # Check if face height is less than 1/4 of the video height. The face is too small
-                    if face_height < frame_height / 4:
+                    if face_height < frame_height / 5:
                         print("face_height", face_height)
                         continue
 
-                    if abs(pose['pitch']) > pose_threshold or abs(pose['roll']) > pose_threshold or abs(pose['yaw']) > pose_threshold:
+                    if abs(pose['pitch']) > 13 or abs(pose['roll']) > 13 or abs(pose['yaw']) > 30:
                         continue  # Skip to the next iteration of the loop
 
 
                     face = self.frame[box['y_min']:box['y_max'], box['x_min']:box['x_max']]
+                    face = cv2.resize(face, (32, 32))
+                    # Convert the resized face image to a format compatible with TensorFlow
+                    face = tf.keras.preprocessing.image.img_to_array(face)
+                    face = tf.expand_dims(face, 0)  # Create a batch
+
                     # cv2.imshow('face', face)
+
+                    predictions_lite = self.classify_lite(sequential_input=face)['fc2']
+                    score_lite = tf.nn.softmax(predictions_lite)
+                    print("score_lite", score_lite)
                     
-                    # liveness_preds, liveness_label = liveness_predict(face=face, 
-                    #                                                 liveness_model=self.liveness_model,
-                    #                                                 liveness_label_encoder=self.liveness_label_encoder,
-                    #                                                 )
-                    
-                    # print (f"liveness_label: {liveness_label} - liveness_preds: {liveness_preds}")
-                    # if (liveness_label == 'real') and (liveness_preds[1] >= self.face_liveness_config.get('acc_threshold')):
-                    #     subjects = result.get('subjects')
-                    #     # print ('liveness_label', liveness_label)
-                    #     empNo = subjects[0]['subject'].split("_")[0]
-                    self.draw_face_box(result, color = self.green_color)
+                
+                    # draw the label and bounding box on the frame
+                    label = self.class_names[np.argmax(score_lite)]
+                    if score_lite[0][1] > 0.50 and label == "real":
+                        print(
+                                "This image most likely belongs to {} with a {:.2f} percent confidence."
+                                .format(self.class_names[np.argmax(score_lite)], 100 * np.max(score_lite))
+                            )
+
+                        self.draw_face_box(result, color = self.green_color)
+                    else:
+                        print("fake face")
 
             cv2.imshow('CompreFace demo', self.frame)
             time.sleep(self.FPS)
