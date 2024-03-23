@@ -8,17 +8,16 @@ if __name__ == '__main__':
     consumer = KafkaConsumer(
         'message',
         bootstrap_servers='localhost:9092',
-        auto_offset_reset='earliest',
+        # auto_offset_reset='earliest',
     )
     for message in consumer:
         try:
+            print('message.header', message.headers)
             my_bytes_value = message.value
             
             # Decode the byte array to a numpy array representing the image
             nparr = np.frombuffer(my_bytes_value, np.uint8)
             img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            img = cv2.resize(img, (640, 480))
-
             
             # Display the image
             cv2.imshow('Received Image', img)
@@ -29,8 +28,9 @@ if __name__ == '__main__':
                 break
         except:
             pass
-    # Close OpenCV windows
-    # cv2.destroyAllWindows()
+
+
+
 # from flask import Flask, render_template, request
 # from flask_socketio import SocketIO
 # from random import random
@@ -112,8 +112,6 @@ if __name__ == '__main__':
 #                 text = f"{class_name}: {confidence:.2f}"
 #                 cv2.putText(img, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-
-
 #             _, img_base64 = cv2.imencode('.jpg', img)
 #             img_base64_str = base64.b64encode(img_base64).decode('utf-8')
 
@@ -131,8 +129,7 @@ if __name__ == '__main__':
 #                 socketio.emit('passimage0', {'data':[video_name, img_base64_str,  frame_no]}) #mit
 #             elif (video_name=="video1"):
 #                 socketio.emit('passimage1', {'data':[video_name, img_base64_str,  frame_no]}) #mit
-#             elif (video_name=="video2"):
-#                 socketio.emit('passimage2', {'data':[video_name, img_base64_str,  frame_no]}) #mit
+
 #             # commit synchronously
 #             videos_map[video_name] = [dataframes]
 #             insert_data_unique(db, videos_map)
@@ -174,3 +171,6 @@ if __name__ == '__main__':
 # if __name__ == '__main__':
     
 #     socketio.run(app,host='0.0.0.0',allow_unsafe_werkzeug=True)
+
+
+# # # 
