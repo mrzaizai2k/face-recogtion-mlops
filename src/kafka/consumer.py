@@ -1,20 +1,36 @@
 import json 
 from kafka import KafkaConsumer
+import cv2
+import numpy as np 
 
 if __name__ == '__main__':
     # Kafka Consumer 
     consumer = KafkaConsumer(
         'message',
         bootstrap_servers='localhost:9092',
-        auto_offset_reset='earliest'
+        auto_offset_reset='earliest',
     )
     for message in consumer:
-        my_bytes_value = message.value
-        print(my_bytes_value)
-        # my_json = my_bytes_value.decode('utf8').replace("'", '"')
-        # print(json.loads(my_json))
+        try:
+            my_bytes_value = message.value
+            
+            # Decode the byte array to a numpy array representing the image
+            nparr = np.frombuffer(my_bytes_value, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            img = cv2.resize(img, (640, 480))
 
-
+            
+            # Display the image
+            cv2.imshow('Received Image', img)
+            
+            # Wait for a key event for 1 millisecond
+            # If any key is pressed, close the window
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        except:
+            pass
+    # Close OpenCV windows
+    # cv2.destroyAllWindows()
 # from flask import Flask, render_template, request
 # from flask_socketio import SocketIO
 # from random import random
