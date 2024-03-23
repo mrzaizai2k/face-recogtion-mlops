@@ -45,7 +45,7 @@ class ThreadedCamera:
 
         print("[INFO] loading liveness detector...")
 
-        TF_MODEL_FILE_PATH = 'models/liveness/model.tflite' # The default path to the saved TensorFlow Lite model
+        TF_MODEL_FILE_PATH = 'models/liveness/binary_model.tflite' # The default path to the saved TensorFlow Lite model
 
         self.interpreter = tf.lite.Interpreter(model_path=TF_MODEL_FILE_PATH)
         print(self.interpreter.get_signature_list())
@@ -64,7 +64,7 @@ class ThreadedCamera:
         compre_face: CompreFace = CompreFace(host, port, self.recognition_config)
         self.recognition: RecognitionService = compre_face.init_face_recognition(api_key)
         self.FPS = 1/26
-
+        self.faces = []
         # Start frame retrieval thread
         self.thread = Thread(target=self.show_frame, args=())
         self.thread.daemon = True
@@ -127,8 +127,9 @@ class ThreadedCamera:
         while self.capture.isOpened():
             (status, frame_raw) = self.capture.read()
             self.frame = cv2.flip(frame_raw, 1)
-            frame_height, frame_width, _ = self.frame.shape
+            self.frame_height, self.frame_width, _ = self.frame.shape
             pose_threshold = 10 
+
             if self.results:
                 results = self.results
                 for result in results:
@@ -141,12 +142,12 @@ class ThreadedCamera:
                         print("mask", mask)
                         continue  # Skip to the next iteration of the loop
 
-                         # Calculate face height
+                            # Calculate face height
                     face_height = box['y_max'] - box['y_min']
 
                     
                     # Check if face height is less than 1/4 of the video height. The face is too small
-                    if face_height < frame_height / 5:
+                    if face_height < self.frame_height / 5:
                         print("face_height", face_height)
                         continue
 
@@ -162,22 +163,13 @@ class ThreadedCamera:
 
                     # cv2.imshow('face', face)
 
-                    predictions_lite = self.classify_lite(sequential_input=face)['fc2']
-                    score_lite = tf.nn.softmax(predictions_lite)
-                    print("score_lite", score_lite)
+                    predictions_lite = self.classify_lite(input_2=face)['fc2']
+                    score_lite = predictions_lite[0]
                     
-                
-                    # draw the label and bounding box on the frame
-                    label = self.class_names[np.argmax(score_lite)]
-                    if score_lite[0][1] > 0.50 and label == "real":
-                        print(
-                                "This image most likely belongs to {} with a {:.2f} percent confidence."
-                                .format(self.class_names[np.argmax(score_lite)], 100 * np.max(score_lite))
-                            )
-
+                    if score_lite[0] > 0.5:
+                        self.faces.append(result)
                         self.draw_face_box(result, color = self.green_color)
-                    else:
-                        print("fake face")
+
 
             cv2.imshow('CompreFace demo', self.frame)
             time.sleep(self.FPS)
@@ -193,6 +185,7 @@ class ThreadedCamera:
     def update_frame(self):
         if not hasattr(self, 'frame'):
             return
+
         _, im_buf_arr = cv2.imencode(".jpg", self.frame)
         byte_im = im_buf_arr.tobytes()
         data = self.recognition.recognize(byte_im)

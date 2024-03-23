@@ -7,3 +7,7 @@ to take pose, vào .venv/Lib/site-packages/compreface/common/typed_dict.py and 
 
         if row.find('age') == -1 and row.find('calculator') == -1 and row.find('gender') == -1 \
                     and row.find('landmarks') == -1 and row.find('mask') == -1 and row.find('pose') == -1:
+
+## Setup kafka
+
+https://viblo.asia/p/kafka-docker-python-LzD5dodzljY
