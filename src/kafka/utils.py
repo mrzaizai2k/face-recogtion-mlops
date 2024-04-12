@@ -1,31 +1,29 @@
-import cv2
+"""Utility functions to support APP"""
+import base64
+import numpy as np
 
 
-def delivery_report(err, msg):
-    if err:
-        print("Failed to deliver message: {0}: {1}"
-              .format(msg.value(), err.str()))
-    else:
-        print(f"msg produced. \n"
-                    f"Topic: {msg.topic()} \n" +
-                    f"Partition: {msg.partition()} \n" +
-                    f"Offset: {msg.offset()} \n" +
-                    f"Timestamp: {msg.timestamp()} \n")
-                    
-def serializeImg(img):
-    _, img_buffer_arr = cv2.imencode(".jpg", img)
-    img_bytes = img_buffer_arr.tobytes()
-    return img_bytes
-    
-def reset_map(_dict):
-    for _key in _dict:
-        _dict[_key] = []
-    return _dict
 
-def create_collections_unique(db, video_names):
-    videos_map = {}
-    for video in video_names:
-        video_collection = db[video]
-        video_collection.create_index("frame", unique=True)
-        videos_map.update({video: []})
-    return videos_map
+# G. 1.
+def np_to_json(obj, prefix_name=""):
+    """Serialize numpy.ndarray obj
+    Should send base64 image with dtype and shape
+    :param prefix_name: unique name for this array.
+    :param obj: numpy.ndarray"""
+    json_data = {
+        f"{prefix_name}_frame": base64.b64encode(obj.tostring()).decode("utf-8"),
+        f"{prefix_name}_dtype": obj.dtype.str,
+        f"{prefix_name}_shape": obj.shape
+        }
+    return json_data
+
+# G. 2.
+def np_from_json(obj, prefix_name=""):
+    """Deserialize numpy.ndarray obj
+    :param prefix_name: unique name for this array.
+    :param obj: numpy.ndarray"""
+    np_array = np.frombuffer(base64.b64decode(obj[f"{prefix_name}_frame"].encode("utf-8")),
+                         dtype=np.dtype(obj[f"{prefix_name}_dtype"])).reshape(obj[f"{prefix_name}_shape"])
+    return np_array
+
+
