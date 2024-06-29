@@ -54,7 +54,8 @@ class ThreadedCamera:
         print("classify_lite", self.classify_lite)
         self.class_names = ['fake', 'real']
 
-        self.capture = cv2.VideoCapture(0)
+        self.capture = cv2.VideoCapture("test_data/video1.mp4")
+        # self.capture = cv2.VideoCapture(0)
         self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 2)
 
         #Load Face Recognition model
@@ -131,8 +132,11 @@ class ThreadedCamera:
             pose_threshold = 10 
 
             if self.results:
+                print("self.results", self.results)
                 results = self.results
                 for result in results:
+                    print('result', result)
+                        
                     box = result.get('box')
                     mask = result.get('mask')
                     pose = result.get('pose')

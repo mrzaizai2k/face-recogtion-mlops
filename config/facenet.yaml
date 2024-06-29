@@ -1,0 +1,15 @@
+notes: test
+tags:
+  - facenet
+
+EPOCHS: 100
+PATIENCE: 3
+BATCH_SIZE: 16
+learning_rate: 0.00003
+IMG_SIZE: 224
+MODEL_DIR: models/facenet_tune/
+RANDOM_SEED: 39
+WEIGHT_DECAY: 0.01
+LR_WARMUP: 10
+CLIP_GRAD_NORM: 5.0
+PRETRAINED_MODEL: vggface2
