@@ -2,8 +2,10 @@ import torch
 import numpy as np
 
 
-def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, 
-        n_epochs:int = 1, device:str = 'cpu', log_interval:int =10, metrics:list=[], start_epoch:int=0):
+def fit(train_loader, val_loader, model, model_path, loss_fn, optimizer, scheduler, 
+        n_epochs:int = 1, device:str = 'cpu', log_interval:int =10, 
+        metrics:list=[], start_epoch:int=0, wandb=None, patience:int = 3,
+        ):
     """
     Loaders, model, loss function and metrics should work together for a given task,
     i.e. The model should be able to process data output of loaders,
@@ -13,6 +15,11 @@ def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler,
     Siamese network: Siamese loader, siamese model, contrastive loss
     Online triplet learning: batch loader, embedding model, online triplet loss
     """
+    early_stopping = EarlyStopping(
+                    patience=patience,
+                    verbose=True,
+                    path=model_path,
+                )
     for epoch in range(0, start_epoch):
         scheduler.step()
 
@@ -20,25 +27,40 @@ def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler,
         scheduler.step()
 
         # Train stage
-        train_loss, metrics = train_epoch(train_loader, model, loss_fn, optimizer, device, log_interval, metrics)
+        avg_train_loss, train_metrics = train_epoch(train_loader, model, loss_fn, optimizer, device, log_interval, metrics, wandb=wandb)
 
-        message = 'Epoch: {}/{}. Train set: Average loss: {:.4f}'.format(epoch + 1, n_epochs, train_loss)
-        for metric in metrics:
+        message = 'Epoch: {}/{}. Train set: Average loss: {:.4f}'.format(epoch + 1, n_epochs, avg_train_loss)
+        for metric in train_metrics :
             message += '\t{}: {}'.format(metric.name(), metric.value())
 
-        val_loss, metrics = test_epoch(val_loader, model, loss_fn, device, metrics)
-        val_loss /= len(val_loader)
+        val_loss, val_metrics  = test_epoch(val_loader, model, loss_fn, device, metrics)
+        avg_val_loss = val_loss / len(val_loader)
 
         message += '\nEpoch: {}/{}. Validation set: Average loss: {:.4f}'.format(epoch + 1, n_epochs,
-                                                                                 val_loss)
-        for metric in metrics:
+                                                                                 avg_val_loss)
+        for metric in val_metrics :
             message += '\t{}: {}'.format(metric.name(), metric.value())
 
         print(message)
 
+        if wandb:
+            wandb.log({
+                'epoch': epoch + 1,
+                'avg_train_loss': avg_train_loss,
+                'avg_val_loss': avg_val_loss,
+                **{f'train_{metric.name()}': metric.value() for metric in train_metrics},
+                **{f'val_{metric.name()}': metric.value() for metric in val_metrics}
+            })
+    
+        early_stopping(avg_val_loss, model)
+        if early_stopping.early_stop:
+            print(f"Early stopping after {epoch} Epochs")
+            break
+
 
 def train_epoch(train_loader, model, loss_fn, optimizer, 
-                device:str = 'cpu', log_interval:int = 10, metrics:list=[]):
+                device:str = 'cpu', log_interval:int = 10, metrics:list=[], wandb=None):
+    
     for metric in metrics:
         metric.reset()
 
@@ -85,6 +107,12 @@ def train_epoch(train_loader, model, loss_fn, optimizer,
             print(message)
             losses = []
 
+            if wandb:
+                wandb.log({
+                    "batch_idx": batch_idx,
+                    "train_loss": loss.item(),
+                })
+
     total_loss /= (batch_idx + 1)
     return total_loss, metrics
 
@@ -121,3 +149,57 @@ def test_epoch(val_loader, model, loss_fn,
                 metric(outputs, target, loss_outputs)
 
     return val_loss, metrics
+
+class EarlyStopping:
+    """Early stops the training if validation loss doesn't improve after a given patience."""
+    def __init__(self, patience=7, verbose=False, delta=0, path='checkpoint.pt', trace_func=print):
+        """
+        Args:
+            patience (int): How long to wait after last time validation loss improved.
+                            Default: 7
+            verbose (bool): If True, prints a message for each validation loss improvement. 
+                            Default: False
+            delta (float): Minimum change in the monitored quantity to qualify as an improvement.
+                            Default: 0
+            path (str): Path for the checkpoint to be saved to.
+                            Default: 'checkpoint.pt'
+            trace_func (function): trace print function.
+                            Default: print            
+        """
+        self.patience = patience
+        self.verbose = verbose
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        self.val_loss_min = np.Inf
+        self.delta = delta
+        self.path = path
+        self.trace_func = trace_func
+    def __call__(self, val_loss, model):
+
+        score = -val_loss
+
+        if self.best_score is None:
+            self.best_score = score
+            self.save_checkpoint(val_loss, model)
+        elif score <= self.best_score + self.delta:
+            self.counter += 1
+            self.trace_func(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+            if self.counter >= self.patience:
+                self.early_stop = True
+        elif np.isnan(score):
+            self.counter += 1
+            self.trace_func(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = score
+            self.save_checkpoint(val_loss, model)
+            self.counter = 0
+
+    def save_checkpoint(self, val_loss, model):
+        '''Saves model when validation loss decrease.'''
+        if self.verbose:
+            self.trace_func(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
+        torch.save(model.state_dict(), self.path)
+        self.val_loss_min = val_loss

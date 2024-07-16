@@ -14,17 +14,21 @@ import torch
 from torch.optim import lr_scheduler
 import torch.optim as optim
 
-from src.facenet_triplet.trainer import fit
-
+import wandb
 from torchvision import datasets
 from torchvision.transforms import InterpolationMode , v2
 
-from src.facenet_triplet.metrics import AverageNonzeroTripletsMetric
 
 # Set up data loaders
 from src.facenet_triplet.datasets import TripletFace, BalancedBatchSampler
 from src.facenet_triplet.networks import TripletNet, FacenetEmbeddingNet, EmbeddingNet
-from src.facenet_triplet.losses import TripletLoss, OnlineContrastiveLoss
+from src.facenet_triplet.losses import TripletLoss, OnlineContrastiveLoss, OnlineTripletLoss
+from src.facenet_triplet.trainer import fit, EarlyStopping
+from src.facenet_triplet.metrics import AverageNonzeroTripletsMetric
+
+
+# from facenet_pytorch import MTCNN, InceptionResnetV1, fixed_image_standardization, training
+
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -50,24 +54,34 @@ log_interval = facenet_config['log_interval']
 learning_rate = facenet_config['learning_rate']
 margin = facenet_config['margin']
 
+n_samples = facenet_config['n_samples']
+num_classes =int(BATCH_SIZE/n_samples) 
 
 MODEL_DIR = rename_model(model_dir = MODEL_DIR, prefix='facenet')
 facenet_config['MODEL_DIR'] = MODEL_DIR
 NUM_WORKERS = 0 if os.name == 'nt' else 8
 
+train_dir = facenet_config['train_dir']
+test_dir = facenet_config['test_dir']
 
-output_dir =  "models/facenet_tune"
-train_dir = 'data/crop_3'
-test_dir = 'data/facenet_vn_cropped_test'
+wandb.init(
+    # set the wandb project where this run will be logged
+    project="facenet",
+    name= os.path.splitext(os.path.basename(MODEL_DIR))[0],
+    notes=facenet_config['notes'],
+    tags=facenet_config['tags'],
+    # track hyperparameters and run metadata
+    config=facenet_config
+)
 
-def count_folders(path):
-    """ Count the number of folders in the given directory """
-    return len([name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))])
 
+num_classes_total = count_folders(train_dir)
 
-num_classes = count_folders(train_dir)
-print(f'Number of classes: {num_classes}')
-
+wandb.log({
+    "n_samples": n_samples,
+    "NUM_WORKERS": NUM_WORKERS,
+    "num_classes_total": num_classes_total,
+})
 
 transform_original = v2.Compose([
     v2.Resize(IMG_SIZE, interpolation=InterpolationMode.BICUBIC,),
@@ -75,6 +89,7 @@ transform_original = v2.Compose([
     v2.ToTensor(),
     v2.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
 ])
+
 train_face_dataset = datasets.ImageFolder(train_dir, transform=transform_original)
 test_face_dataset = datasets.ImageFolder(test_dir, transform=transform_original)
 train_face_dataset.train =True
@@ -87,43 +102,7 @@ facenet_embedding_net = facenet_embedding_net.to(device)
 facenet_model = TripletNet(facenet_embedding_net)
 facenet_model = facenet_model.to(device)
 
-triplet_train_face_dataset = TripletFace(train_face_dataset, random_seed=RANDOM_SEED) # Returns triplets of images
-triplet_test_face_dataset = TripletFace(test_face_dataset, random_seed=RANDOM_SEED) # Returns triplets of images
-
-# plot_triplet(triplet_train_face_dataset[10][0])
-
-kwargs = {'num_workers': NUM_WORKERS, 'pin_memory': PIN_MEMORY} if cuda else {}
-
-triplet_train_face_loader = torch.utils.data.DataLoader(triplet_train_face_dataset, batch_size=BATCH_SIZE, shuffle=True, **kwargs)
-triplet_test_face_loader = torch.utils.data.DataLoader(triplet_test_face_dataset, batch_size=BATCH_SIZE, shuffle=False, **kwargs)
-
-
-loss_fn = TripletLoss(margin)
-
-optimizer = optim.Adam(facenet_model.parameters(), lr=learning_rate)
-scheduler_linear = lr_scheduler.LinearLR(optimizer, start_factor=0.01, total_iters=LR_WARMUP)
-scheduler_cosine = lr_scheduler.CosineAnnealingLR(optimizer, T_max=490, eta_min=learning_rate/100)
-scheduler = lr_scheduler.SequentialLR(optimizer, [scheduler_linear,scheduler_cosine],milestones=[10])
-
-
-# fit(train_loader = triplet_train_face_loader, 
-#     val_loader=triplet_test_face_loader, 
-#     model= facenet_model, 
-#     loss_fn=loss_fn,
-#     optimizer=optimizer, 
-#     scheduler = scheduler, 
-#     n_epochs=EPOCHS, 
-#     device=device, 
-#     log_interval=log_interval,)
-
-
-# torch.save(facenet_model.state_dict(), "models/facenet_tune/facenet.pt")
-# torch.save(facenet_model, MODEL_DIR)
-
-
 # We'll create mini batches by sampling labels that will be present in the mini batch and number of examples from each class
-n_classes = 4
-n_samples =int(BATCH_SIZE/n_classes) 
 
 train_batch_sampler = BalancedBatchSampler(train_face_dataset, n_classes=n_classes, n_samples=n_samples, is_dataset=True)
 test_batch_sampler = BalancedBatchSampler(test_face_dataset, n_classes=n_classes, n_samples=n_samples, is_dataset=True)
@@ -135,23 +114,28 @@ online_train_loader = torch.utils.data.DataLoader(train_face_dataset, batch_samp
 online_test_loader = torch.utils.data.DataLoader(test_face_dataset, batch_sampler=test_batch_sampler, **kwargs)
 
 
-loss_fn = OnlineContrastiveLoss(margin, HardNegativePairSelector())
+# loss_fn = OnlineContrastiveLoss(margin, HardNegativePairSelector()) # Online Pair selection
+loss_fn = OnlineTripletLoss(margin, RandomNegativeTripletSelector(margin)) # Online Triplet selection
+
 optimizer = optim.Adam(facenet_model.parameters(), lr=learning_rate)
 scheduler_linear = lr_scheduler.LinearLR(optimizer, start_factor=0.01, total_iters=LR_WARMUP)
 scheduler_cosine = lr_scheduler.CosineAnnealingLR(optimizer, T_max=490, eta_min=learning_rate/100)
 scheduler = lr_scheduler.SequentialLR(optimizer, [scheduler_linear,scheduler_cosine],milestones=[10])
 
-
-
 fit(train_loader = online_train_loader, 
                 val_loader=online_test_loader, 
                 model= facenet_embedding_net, 
+                model_path=MODEL_DIR,
+                patience=PATIENCE,
                 loss_fn=loss_fn,
                 optimizer=optimizer, 
                 scheduler = scheduler, 
                 n_epochs=EPOCHS, 
                 device=device, 
-                log_interval=log_interval,)
+                log_interval=log_interval,
+                wandb = wandb,
+                metrics=[AverageNonzeroTripletsMetric()]
+                )
 
 # facenet_model = torch.load("models/facenet_tune/facenet_2024_07_15_1.pth")
 

@@ -2,7 +2,7 @@ from itertools import combinations
 
 import numpy as np
 import torch
-
+import os
 import matplotlib.pyplot as plt
 
 
@@ -265,3 +265,7 @@ def plot_model_result(model, triplet_train_face_loader,
 
     plt.tight_layout()
     plt.show()
+
+def count_folders(path):
+    """ Count the number of folders in the given directory """
+    return len([name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))])
