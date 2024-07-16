@@ -85,3 +85,17 @@ class TripletNet(nn.Module):
 
     def get_embedding(self, x):
         return self.embedding_net(x)
+
+
+class FacenetEmbeddingNet(nn.Module):
+    def __init__(self, facenet_model):
+        super(FacenetEmbeddingNet, self).__init__()
+        self.facenet_model = facenet_model
+
+    def forward(self, x):
+        # Forward pass through Facenet model
+        return self.facenet_model(x)
+
+    def get_embedding(self, x):
+        # Get embeddings using the Facenet model
+        return self.facenet_model(x)
