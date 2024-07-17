@@ -26,11 +26,6 @@ from src.facenet_triplet.losses import TripletLoss, OnlineContrastiveLoss, Onlin
 from src.facenet_triplet.trainer import fit, EarlyStopping
 from src.facenet_triplet.metrics import AverageNonzeroTripletsMetric
 
-
-# from facenet_pytorch import MTCNN, InceptionResnetV1, fixed_image_standardization, training
-
-
-
 device = "cuda" if torch.cuda.is_available() else "cpu"
 cuda = torch.cuda.is_available()
 
@@ -55,7 +50,7 @@ learning_rate = facenet_config['learning_rate']
 margin = facenet_config['margin']
 
 n_samples = facenet_config['n_samples']
-num_classes =int(BATCH_SIZE/n_samples) 
+n_classes =int(BATCH_SIZE/n_samples) 
 
 MODEL_DIR = rename_model(model_dir = MODEL_DIR, prefix='facenet')
 facenet_config['MODEL_DIR'] = MODEL_DIR

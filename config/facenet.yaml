@@ -3,9 +3,9 @@ tags:
   - facenet
   - online pairs
 
-EPOCHS: 10
-PATIENCE: 3
-BATCH_SIZE: 16
+EPOCHS: 50
+PATIENCE: 5
+BATCH_SIZE: 1024
 
 MODEL_DIR: models/facenet_tune/
 RANDOM_SEED: 39
@@ -17,8 +17,8 @@ IMG_SIZE : 160
 PIN_MEMORY: True
 
 log_interval: 10
-learning_rate: 0.003
-margin: 1.0
+learning_rate: 0.0003
+margin: 1.0 # 0.2 in the paper
 n_samples: 4 # the classes in a mini batch
 
 train_dir: data/facenet_vn_cropped
