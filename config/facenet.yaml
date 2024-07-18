@@ -3,22 +3,23 @@ tags:
   - facenet
   - online pairs
 
-EPOCHS: 50
-PATIENCE: 5
-BATCH_SIZE: 1024
+EPOCHS: 500
+PATIENCE: 500
+BATCH_SIZE: 256
 
 MODEL_DIR: models/facenet_tune/
 RANDOM_SEED: 39
-WEIGHT_DECAY: 0.01
 LR_WARMUP: 10
-CLIP_GRAD_NORM: 5.0
 PRETRAINED_MODEL: vggface2
 IMG_SIZE : 160
 PIN_MEMORY: True
 
+WEIGHT_DECAY: Null
+CLIP_GRAD_NORM: Null
+
 log_interval: 10
-learning_rate: 0.0003
-margin: 1.0 # 0.2 in the paper
+learning_rate: 0.05
+margin: 0.2 # 0.2 in the paper
 n_samples: 4 # the classes in a mini batch
 
 train_dir: data/facenet_vn_cropped

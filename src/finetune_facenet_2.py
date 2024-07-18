@@ -37,13 +37,13 @@ PATIENCE = facenet_config['PATIENCE']
 BATCH_SIZE = facenet_config['BATCH_SIZE']
 IMG_SIZE = facenet_config['IMG_SIZE']
 RANDOM_SEED = facenet_config['RANDOM_SEED']
-WEIGHT_DECAY = facenet_config['WEIGHT_DECAY']
 LR_WARMUP = facenet_config['LR_WARMUP']
-CLIP_GRAD_NORM = facenet_config['CLIP_GRAD_NORM']
-PRETRAINED_MODEL = facenet_config['PRETRAINED_MODEL']
 MODEL_DIR = facenet_config['MODEL_DIR']
 PIN_MEMORY = facenet_config['PIN_MEMORY']
 IMG_SIZE = facenet_config['IMG_SIZE']
+
+CLIP_GRAD_NORM = facenet_config['CLIP_GRAD_NORM']
+PRETRAINED_MODEL = facenet_config['PRETRAINED_MODEL']
 
 log_interval = facenet_config['log_interval']
 learning_rate = facenet_config['learning_rate']
@@ -77,6 +77,8 @@ wandb.log({
     "NUM_WORKERS": NUM_WORKERS,
     "num_classes_total": num_classes_total,
 })
+
+# wandb = None 
 
 transform_original = v2.Compose([
     v2.Resize(IMG_SIZE, interpolation=InterpolationMode.BICUBIC,),
