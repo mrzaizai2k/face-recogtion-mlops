@@ -17,10 +17,11 @@ import torch.optim as optim
 import wandb
 from torchvision import datasets
 from torchvision.transforms import InterpolationMode , v2
-
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
 # Set up data loaders
-from src.facenet_triplet.datasets import TripletFace, BalancedBatchSampler
+from src.facenet_triplet.datasets import TripletFace, BalancedBatchSampler, AugmentedImageFolder
 from src.facenet_triplet.networks import TripletNet, FacenetEmbeddingNet, EmbeddingNet
 from src.facenet_triplet.losses import TripletLoss, OnlineContrastiveLoss, OnlineTripletLoss
 from src.facenet_triplet.trainer import fit, EarlyStopping
@@ -87,9 +88,22 @@ transform_original = v2.Compose([
     v2.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
 ])
 
-train_face_dataset = datasets.ImageFolder(train_dir, transform=transform_original)
+albu_transforms = A.Compose([
+    A.HorizontalFlip(p=0.5),  # Random horizontal flip
+    A.RandomResizedCrop(height=160, width=160, scale=(0.9, 1.0), ratio=(0.9, 1.1), p=0.5),  # Small crop to 155 and resize back to 160
+    A.Rotate(limit=15, p=0.5),  # Random rotation between -15 and 15 degrees
+    A.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),  # Normalization
+    ToTensorV2(),  # Convert image to tensor
+])
+
+    
+# train_face_dataset = datasets.ImageFolder(train_dir, transform=transform_original)
+train_face_dataset = AugmentedImageFolder(train_dir, transform=transform_original, albu_transform=albu_transforms)
 test_face_dataset = datasets.ImageFolder(test_dir, transform=transform_original)
 train_face_dataset.train =True
+
+print(f"train_face_dataset: {len(train_face_dataset)}")
+print(f"test_face_dataset: {len(test_face_dataset)}")
 
 
 res_model = InceptionResnetV1(pretrained=PRETRAINED_MODEL, classify=False,

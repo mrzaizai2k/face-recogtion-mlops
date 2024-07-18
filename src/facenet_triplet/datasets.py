@@ -3,6 +3,7 @@ from PIL import Image
 
 from torch.utils.data import Dataset
 from torch.utils.data.sampler import BatchSampler
+from torchvision import datasets
 
 
 class TripletFace(Dataset):
@@ -216,65 +217,22 @@ class TripletMNIST(Dataset):
     def __len__(self):
         return len(self.mnist_dataset)
 
-
+    
 # class BalancedBatchSampler(BatchSampler):
 #     """
-#     BatchSampler - from a MNIST-like dataset, samples n_classes and within these classes samples n_samples.
-#     Returns batches of size n_classes * n_samples
+#     BatchSampler - Samples n_classes and within these classes samples n_samples.
+#     Returns batches of size n_classes * n_samples.
 #     """
 
-#     def __init__(self, labels, n_classes, n_samples):
-#         self.labels = labels
-#         try:
-#             self.labels_set = list(set(self.labels.numpy()))
-#         except:
-#             self.labels_set = list(set(self.labels))
+#     def __init__(self, input_data, n_classes, n_samples, is_dataset=False):
+#         '''
+#         is_dataset: set True if you use dataset from ImageFolder
+#         '''
+#         if is_dataset:
+#             self.labels = np.array(input_data.targets)
+#         else:
+#             self.labels = input_data
 
-#         try:
-#             self.label_to_indices = {label: np.where(self.labels.numpy() == label)[0]
-#                                     for label in self.labels_set}
-#         except AttributeError:  # Handle the specific exception
-#             self.label_to_indices = {label: np.where(np.array(self.labels) == label)[0]
-#                                     for label in self.labels_set}
-
-#         for l in self.labels_set:
-#             np.random.shuffle(self.label_to_indices[l])
-#         self.used_label_indices_count = {label: 0 for label in self.labels_set}
-#         self.count = 0
-#         self.n_classes = n_classes
-#         self.n_samples = n_samples
-#         self.n_dataset = len(self.labels)
-#         self.batch_size = self.n_samples * self.n_classes
-
-#     def __iter__(self):
-#         self.count = 0
-#         while self.count + self.batch_size < self.n_dataset:
-#             classes = np.random.choice(self.labels_set, self.n_classes, replace=False)
-#             indices = []
-#             for class_ in classes:
-#                 indices.extend(self.label_to_indices[class_][
-#                                self.used_label_indices_count[class_]:self.used_label_indices_count[
-#                                                                          class_] + self.n_samples])
-#                 self.used_label_indices_count[class_] += self.n_samples
-#                 if self.used_label_indices_count[class_] + self.n_samples > len(self.label_to_indices[class_]):
-#                     np.random.shuffle(self.label_to_indices[class_])
-#                     self.used_label_indices_count[class_] = 0
-#             yield indices
-#             self.count += self.n_classes * self.n_samples
-
-#     def __len__(self):
-#         return self.n_dataset // self.batch_size
-
-
-
-# class BalancedBatchSamplerUpdate(BatchSampler):
-#     """
-#     BatchSampler - from a dataset with integer labels, samples n_classes and within these classes samples n_samples.
-#     Returns batches of size n_classes * n_samples
-#     """
-
-#     def __init__(self, dataset, n_classes, n_samples):
-#         self.labels = np.array(dataset.targets)
 #         self.labels_set = list(set(self.labels))
 #         self.label_to_indices = {label: np.where(self.labels == label)[0]
 #                                  for label in self.labels_set}
@@ -294,8 +252,7 @@ class TripletMNIST(Dataset):
 #             indices = []
 #             for class_ in classes:
 #                 indices.extend(self.label_to_indices[class_][
-#                                self.used_label_indices_count[class_]:self.used_label_indices_count[
-#                                                                          class_] + self.n_samples])
+#                                self.used_label_indices_count[class_]:self.used_label_indices_count[class_] + self.n_samples])
 #                 self.used_label_indices_count[class_] += self.n_samples
 #                 if self.used_label_indices_count[class_] + self.n_samples > len(self.label_to_indices[class_]):
 #                     np.random.shuffle(self.label_to_indices[class_])
@@ -305,17 +262,9 @@ class TripletMNIST(Dataset):
 
 #     def __len__(self):
 #         return self.n_dataset // self.batch_size
-    
-class BalancedBatchSampler(BatchSampler):
-    """
-    BatchSampler - Samples n_classes and within these classes samples n_samples.
-    Returns batches of size n_classes * n_samples.
-    """
 
+class BalancedBatchSampler(BatchSampler):
     def __init__(self, input_data, n_classes, n_samples, is_dataset=False):
-        '''
-        is_dataset: set True if you use dataset from ImageFolder
-        '''
         if is_dataset:
             self.labels = np.array(input_data.targets)
         else:
@@ -346,7 +295,35 @@ class BalancedBatchSampler(BatchSampler):
                     np.random.shuffle(self.label_to_indices[class_])
                     self.used_label_indices_count[class_] = 0
             yield indices
-            self.count += self.n_classes * self.n_samples
+            self.count += self.batch_size
 
     def __len__(self):
         return self.n_dataset // self.batch_size
+
+    
+# Custom dataset class to combine original and augmented images
+class AugmentedImageFolder(datasets.ImageFolder):
+    def __init__(self, root, transform=None, albu_transform=None):
+        super().__init__(root, transform)
+        self.albu_transform = albu_transform
+
+    def __getitem__(self, index):
+        path, target = self.samples[index]
+        sample = self.loader(path)
+
+        if self.transform is not None:
+            original_sample = self.transform(sample)
+
+        if self.albu_transform is not None:
+            # Convert PIL Image to numpy array
+            np_image = np.array(sample)
+            augmented_sample = self.albu_transform(image=np_image)['image']
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        # Return both original and augmented samples
+        return original_sample, augmented_sample, target
+
+    def __len__(self):
+        return super().__len__()

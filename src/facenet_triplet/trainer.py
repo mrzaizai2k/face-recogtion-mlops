@@ -67,9 +67,18 @@ def train_epoch(train_loader, model, loss_fn, optimizer,
     model.train()
     losses = []
     total_loss = 0
+    
+    # Get the correct total number of samples
+    total_samples = len(train_loader.dataset) * 2  # Multiply by 2 for original + augmented
 
-    for batch_idx, (data, target) in enumerate(train_loader):
+    for batch_idx, (original_data, augmented_data, target) in enumerate(train_loader):
         target = target if len(target) > 0 else None
+        
+        # Combine original and augmented data
+        data = torch.cat((original_data, augmented_data), 0)
+        if target is not None:
+            target = torch.cat((target, target), 0)  # Duplicate targets for augmented data
+        
         if not type(data) in (tuple, list):
             data = (data,)
         data = tuple(d.to(device) for d in data)
@@ -98,9 +107,12 @@ def train_epoch(train_loader, model, loss_fn, optimizer,
             metric(outputs, target, loss_outputs)
 
         if batch_idx % log_interval == 0:
+            # Calculate the correct number of processed samples
+            samples_processed = (batch_idx + 1) * len(data[0])
+            
             message = 'Train: [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                batch_idx * len(data[0]), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), np.mean(losses))
+                samples_processed, total_samples,
+                100. * samples_processed / total_samples, np.mean(losses))
             for metric in metrics:
                 message += '\t{}: {}'.format(metric.name(), metric.value())
 
@@ -111,11 +123,12 @@ def train_epoch(train_loader, model, loss_fn, optimizer,
                 wandb.log({
                     "batch_idx": batch_idx,
                     "train_loss": loss.item(),
+                    "samples_processed": samples_processed,
+                    "percentage_complete": 100. * samples_processed / total_samples
                 })
 
     total_loss /= (batch_idx + 1)
     return total_loss, metrics
-
 
 def test_epoch(val_loader, model, loss_fn, 
                device:str = 'cpu', metrics:list = []):
