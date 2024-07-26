@@ -54,9 +54,11 @@ class ThreadedCamera:
         print("classify_lite", self.classify_lite)
         self.class_names = ['fake', 'real']
 
-        self.capture = cv2.VideoCapture("test_data/video1.mp4")
+        self.capture = cv2.VideoCapture("test_data/vid.mp4")
         # self.capture = cv2.VideoCapture(0)
         self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 2)
+        # self.capture.set(3, 640)
+        # self.capture.set(4, 480)
 
         #Load Face Recognition model
         self.recognization_config_path =recognization_config_path
@@ -127,6 +129,8 @@ class ThreadedCamera:
         print("Started")
         while self.capture.isOpened():
             (status, frame_raw) = self.capture.read()
+            frame_raw = cv2.resize(frame_raw, (640, 480))
+
             self.frame = cv2.flip(frame_raw, 1)
             self.frame_height, self.frame_width, _ = self.frame.shape
             pose_threshold = 10 

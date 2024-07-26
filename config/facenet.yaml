@@ -2,10 +2,11 @@ notes: test
 tags:
   - facenet
   - online pairs
+  - Augmentation light
 
-EPOCHS: 500
-PATIENCE: 500
-BATCH_SIZE: 256
+EPOCHS: 20
+PATIENCE: 5
+BATCH_SIZE: 256 # Larger is better
 
 MODEL_DIR: models/facenet_tune/
 RANDOM_SEED: 39
@@ -18,9 +19,9 @@ WEIGHT_DECAY: Null
 CLIP_GRAD_NORM: Null
 
 log_interval: 10
-learning_rate: 0.05
+learning_rate: 0.00003 # Must be small
 margin: 0.2 # 0.2 in the paper
-n_samples: 4 # the classes in a mini batch
+n_samples: 8 # the classes in a mini batch
 
 train_dir: data/facenet_vn_cropped
 test_dir: data/facenet_vn_cropped_test

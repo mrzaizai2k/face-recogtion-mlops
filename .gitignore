@@ -13,3 +13,4 @@ test_data/
 models/
 *.pt
 wandb/
+saved_model/

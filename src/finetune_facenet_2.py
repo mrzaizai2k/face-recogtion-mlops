@@ -88,6 +88,7 @@ transform_original = v2.Compose([
     v2.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
 ])
 
+
 albu_transforms = A.Compose([
     A.HorizontalFlip(p=0.5),  # Random horizontal flip
     A.RandomResizedCrop(height=160, width=160, scale=(0.9, 1.0), ratio=(0.9, 1.1), p=0.5),  # Small crop to 155 and resize back to 160
@@ -101,6 +102,11 @@ albu_transforms = A.Compose([
 train_face_dataset = AugmentedImageFolder(train_dir, transform=transform_original, albu_transform=albu_transforms)
 test_face_dataset = datasets.ImageFolder(test_dir, transform=transform_original)
 train_face_dataset.train =True
+
+wandb.log({
+    "train_face_dataset": len(train_face_dataset),
+    "test_face_dataset": len(test_face_dataset),
+})
 
 print(f"train_face_dataset: {len(train_face_dataset)}")
 print(f"test_face_dataset: {len(test_face_dataset)}")
